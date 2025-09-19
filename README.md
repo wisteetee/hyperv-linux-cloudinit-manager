@@ -30,14 +30,15 @@ Ce projet permet de :
 
 ## 📂 Arborescence simplifiée
 
-
-├─ deploy_vms_remote.ps1        # Menu/driver : charge la conf, sélectionne, orchestre la création\
-├─ CreateVmRemote.ps1           # Création d’UNE VM (remoting Hyper-V) + appel ISO\
-├─ Create_Iso_Cidata.ps1        # Génération de l’ISO cloud-init (NoCloud, label CIDATA)\
-├─ config.psd1                  # Fichier de configuration (hôte, chemins, réseau, défauts, scripts)\
-├─ img/\
-│  └─ screen_presentation_readme.png\
-└─ README.md\
+```
+├─ deploy_vms_remote.ps1        # Menu/driver : charge la conf, sélectionne, orchestre la création
+├─ CreateVmRemote.ps1           # Création d’UNE VM (remoting Hyper-V) + appel ISO
+├─ Create_Iso_Cidata.ps1        # Génération de l’ISO cloud-init (NoCloud, label CIDATA)
+├─ config.psd1                  # Fichier de configuration (hôte, chemins, réseau, défauts, scripts)
+├─ img/
+│  └─ screen_presentation_readme.png
+└─ README.md
+```
 ---
 
 ## 📋 Prérequis
