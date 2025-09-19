@@ -48,17 +48,12 @@ Ce projet permet de :
 - L'outils de création d'iso [`oscdimg.exe`] installé, fourni avec le Windows ADK (Assessment and Deployment Kit).(https://learn.microsoft.com/fr-fr/windows-hardware/get-started/adk-install)
 - Un switch Hyper-V existant et connecté (ex : `vSwitch-EXT1`)
 - Accès admin sur l’hôte distant
-- Out-GridView pour une sélection graphique des paquets
-(Install-Module Microsoft.PowerShell.GraphicalTools -Scope CurrentUser\
-Import-Module Microsoft.PowerShell.GraphicalTools )
+- Out-GridView pour une sélection graphique des paquets\
+```
+Install-Module Microsoft.PowerShell.GraphicalTools -Scope CurrentUser\
+Import-Module Microsoft.PowerShell.GraphicalTools
+```
 
-
-
-Windows ADK installé (pour oscdimg.exe) — renseigne son chemin dans config.psd1
-
-Un vSwitch Hyper-V existant (ex. vSwitch-EXT1)
-
-(Optionnel) Out-GridView pour une sélection graphique des paquets
 
 ---
 
