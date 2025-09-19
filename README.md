@@ -4,6 +4,7 @@ Scripts PowerShell pour provisionner des VMs Linux sur Hyper-V avec cloud-init (
 
 Un outil PowerShell automatisé pour déployer dynamiquement des machines virtuelles Ubuntu sur un hôte **Hyper-V distant**, avec configuration réseau **statique via cloud-init** ou **dynamique DHCP**, selon des paramètres définis dans un fichier de conf.
 
+![HyperV-Linux-Cloudinit-Manager](./img/screen_presentation_readme.png)
 ---
 
 ## 🧭 Objectif
