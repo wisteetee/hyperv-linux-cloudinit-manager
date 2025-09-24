@@ -58,7 +58,7 @@
   Time zone pour cloud-init (si applicable).
 
 .EXAMPLE
-  .\deploy_vms_remote.ps1 -Verbose
+  .\deploy_vms_remote.ps1 -Parameter IsoPath
 #>
 
 
