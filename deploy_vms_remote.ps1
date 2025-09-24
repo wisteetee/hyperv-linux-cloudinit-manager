@@ -1,10 +1,66 @@
-﻿<#
+<#
 ========================================================================
- Script : deploy_vms_remote.ps1
- Auteur : LEPAPE Remy
- Date   : 03/07/2025
+ Script  : deploy_vms_remote.ps1
+ Auteur  : Rémy LEPAPE
+ Date    : 03/07/2025
+
+ Description :
+   Script interactif de gestion de VM Hyper-V distantes (création, démarrage,
+   arrêt, suppression, listing). Utilise des sous-scripts (Create_Iso_Cidata,
+   CreateVmRemote, etc.) décrits avec d'autres paramètres dans le fichier de configuration config.psd1.
+
+ Important :
+   - Vérifier que WinRM est configuré entre la machine de contrôle et l'hôte distant.
+   (script preconfiguration/PSRemotingAutoConfig.ps1 pour configurer ceci au préalable) 
 ========================================================================
 #>
+
+<#
+.SYNOPSIS
+  Interface interactive pour déployer et gérer des VMs Hyper-V sur un hôte distant.
+
+.DESCRIPTION
+  Ce script lit une configuration (config.psd1) contenant chemins et defaults,
+  propose un menu interactif et invoque des sous-scripts distants/locaux pour
+  réaliser les actions (Create ISO, Create VM, Start/Stop, Remove).
+
+.PARAMETER RemoteHost
+  Nom ou adresse de l'hôte Hyper-V distant (peut être lu depuis config si absent).
+
+.PARAMETER VHDPath
+  Chemin du parent VHDX sur l'hôte distant (peut être lu depuis config).
+
+.PARAMETER VmRoot
+  Répertoire racine des VM sur l'hôte distant (peut être lu depuis config).
+
+.PARAMETER IsoPath
+  Chemin des ISO côté distant (peut être lu depuis config).
+
+.PARAMETER OscdimgPath
+  Chemin vers oscdimg.exe côté distant (optionnel).
+
+.PARAMETER VmSwitch
+  Nom du switch Hyper-V sur l'hôte distant.
+
+.PARAMETER MemoryGB
+  Valeur par défaut de la RAM allouée (en GiB).
+
+.PARAMETER NetMode
+  'DHCP' ou 'STATIC'. Si STATIC, la configuration réseau est utilisée.
+
+.PARAMETER Gateway
+  Gateway par défaut (si NetMode = STATIC).
+
+.PARAMETER DnsServers
+  Tableau d'adresses DNS (si NetMode = STATIC).
+
+.PARAMETER TimeZone
+  Time zone pour cloud-init (si applicable).
+
+.EXAMPLE
+  .\deploy_vms_remote.ps1 -Verbose
+#>
+
 
 #Requires -RunAsAdministrator
 param(
