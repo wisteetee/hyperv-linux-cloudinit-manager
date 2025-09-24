@@ -1,9 +1,75 @@
-﻿<#
+<#
 ========================================================================
- Script : CreateVmRemote.ps1
- Auteur : LEPAPE Remy
- Date   : 03/07/2025
+ Script  : CreateVmRemote.ps1
+ Auteur  : Rémy LEPAPE
+ Date    : 03/07/2025
+
+
+ Description :
+   Crée une VM Hyper-V distante en générant une ISO cloud-init NoCloud via
+   le script Create_Iso_Cidata.ps1. Les opérations sont exécutées
+   sur l'hôte distant via Invoke-Command.
+
 ========================================================================
+#>
+
+<#
+.SYNOPSIS
+  Crée une VM Hyper-V distante et génère une ISO cloud-init (NoCloud).
+
+.DESCRIPTION
+  Le script génère d'abord une ISO NoCloud côté hôte distant en appelant
+  Create_Iso_Cidata.ps1. Ensuite, il crée une VM Hyper-V (disque différentiel,
+  connexion de l'ISO, désactivation SecureBoot) et démarre la VM.
+  Les actions distantes sont réalisées via Invoke-Command.
+
+.PARAMETER VMName
+  Nom de la machine virtuelle (ex: vm-test01).
+
+.PARAMETER VHDPath
+  Chemin absolu du disque parent (sur l'hôte distant).
+
+.PARAMETER MemoryGB
+  Quantité de mémoire à allouer (en Gb).
+
+.PARAMETER IsoPath
+  Chemin sur l'hôte distant où sera placé l'ISO générée.
+
+.PARAMETER OscdimgPath
+  Chemin vers oscdimg.exe sur l'hôte distant.
+
+.PARAMETER RemoteHost
+  Nom ou adresse de l'hôte Hyper-V distant.
+
+.PARAMETER Credential
+  PSCredential utilisé pour la connexion distante (Invoke-Command -Credential).
+
+.PARAMETER VmSwitch
+  Nom du vSwitch Hyper-V présent sur l'hôte distant.
+
+.PARAMETER NetMode
+  'DHCP' ou 'STATIC'. Si 'STATIC', renseigner IpCidr, Gateway, DnsServers.
+
+.PARAMETER IpCidr
+  Adresse IP au format CIDR (ex: 192.168.10.50/24) — requis si NetMode = 'STATIC'.
+
+.PARAMETER Gateway
+  Passerelle par défaut pour la VM (si STATIC).
+
+.PARAMETER DnsServers
+  Liste d'adresses DNS (si STATIC).
+
+.PARAMETER TimeZone
+  TimeZone pour cloud-init (par défaut 'UTC').
+
+.PARAMETER Packages
+  Liste de paquets à installer via cloud-init (optionnel).
+
+.EXAMPLE
+  .\CreateVmRemote.ps1 -VMName vm01 -VHDPath "E:\Base\ubuntu.vhdx" -MemoryGB 2 `
+    -IsoPath "E:\Iso" -OscdimgPath "C:\tools\oscdimg.exe" -RemoteHost hyperv01 `
+    -Credential (Get-Credential) -VmSwitch "Default Switch" -NetMode DHCP -Verbose
+
 #>
 
 param(
@@ -23,7 +89,7 @@ param(
 	[string[]]$Packages
 )
 
-# Script de génération ISO (à côté de ce .ps1)
+# Script de génération ISO
 $PS_ISO = Join-Path $PSScriptRoot 'Create_Iso_Cidata.ps1'
 
 function New-CloudInitIsoRemote {
@@ -54,14 +120,14 @@ function New-CloudInitIsoRemote {
         $Hostname,         # 4  Hostname
         $Fqdn,             # 5  FQDN
         $TimeZone,         # 6  TimeZone
-        'Password',        # 7  Password (remplace si tu gères un hash)
+        'Password',        # 7  Password
         'admin',           # 8  Username
         $null,             # 9  PasswordHash
         @(),               # 10 SSH keys
         $NetMode,          # 11 'DHCP' / 'STATIC'
         $IpCidr,           # 12
         $Gateway,          # 13
-        [object]$DnsServers,  # 14 (boxing tableau)
+        [object]$DnsServers,  # 14
 		[object]$Packages
     )
 }
@@ -110,7 +176,10 @@ $createVmSb = {
     Write-Host "VM '$VMName' créée et démarrée (distant)."
 }
 
-# Astuce anti-parser: on passe par une variable de ScriptBlock
+# Remarque historique :
+# Nous passons ici par une variable ScriptBlock au lieu de construire une chaîne
+# ScriptBlock inline car certains retours à la ligne et guillemets dans Invoke-Command
+# causaient des erreurs de parsing lors de l'exécution distante
 Invoke-Command -ComputerName $RemoteHost -Credential $Credential `
   -ScriptBlock $createVmSb `
   -ArgumentList @($VMName, $VHDPath, $MemoryGB, $VmSwitch, $IsoPath)
