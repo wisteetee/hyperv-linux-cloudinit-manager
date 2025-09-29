@@ -115,6 +115,92 @@ function Get-Credentials {
     Import-Clixml -Path $CredFile
 }
 
+function Get-NextAvailableIP {
+    param([hashtable]$Config)
+
+    $poolStart = $Config.Network.PoolStart
+    $poolEnd = if ($Config.Network.PoolEnd) { $Config.Network.PoolEnd } else { $poolStart + 50 }
+    $usedIPs = $Config.Network.UsedIPs
+
+    for ($octet = $poolStart; $octet -le $poolEnd; $octet++) {
+        if ($usedIPs -notcontains $octet) {
+            return $octet
+        }
+    }
+
+    throw "Aucune IP disponible dans la plage $poolStart-$poolEnd. IPs utilisées: $($usedIPs -join ', ')"
+}
+
+function Update-ConfigNetworkData {
+    param([string]$ConfigPath, [int[]]$NewUsedIPs, [hashtable]$NewVmIpMapping)
+
+    # Charger le contenu ligne par ligne
+    $lines = Get-Content -Path $ConfigPath
+
+    # Créer la représentation de la hashtable pour le fichier
+    if ($NewVmIpMapping.Count -eq 0) {
+        $mappingString = "@{}"
+    } else {
+        $mappingPairs = @()
+        foreach ($vmName in $NewVmIpMapping.Keys) {
+            $mappingPairs += "'$vmName' = $($NewVmIpMapping[$vmName])"
+        }
+        $mappingString = "@{ $($mappingPairs -join '; ') }"
+    }
+
+    # Traiter chaque ligne
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^\s*UsedIPs\s*=') {
+            # Remplacer la ligne UsedIPs
+            $lines[$i] = "`tUsedIPs    = @($($NewUsedIPs -join ', '))                       # Liste des derniers octets utilisés"
+        }
+        elseif ($lines[$i] -match '^\s*VmIpMapping\s*=') {
+            # Remplacer la ligne VmIpMapping
+            $lines[$i] = "`tVmIpMapping = $mappingString                                        # Association VM → IP"
+        }
+    }
+
+    # Sauvegarder le fichier avec UTF-8 BOM
+    $lines | Set-Content -Path $ConfigPath -Encoding UTF8
+}
+
+function Reserve-IP {
+    param([int]$LastOctet, [string]$VmName, [hashtable]$Config, [string]$ConfigPath)
+
+    if ($Config.Network.UsedIPs -notcontains $LastOctet) {
+        # Réserver l'IP
+        $Config.Network.UsedIPs += $LastOctet
+        $Config.Network.UsedIPs = $Config.Network.UsedIPs | Sort-Object
+
+        # Enregistrer l'association VM → IP
+        $Config.Network.VmIpMapping[$VmName] = $LastOctet
+
+        # Sauvegarder les deux dans le fichier
+        Update-ConfigNetworkData -ConfigPath $ConfigPath -NewUsedIPs $Config.Network.UsedIPs -NewVmIpMapping $Config.Network.VmIpMapping
+
+        Write-Host "[INFO] IP .$LastOctet réservée pour $VmName" -ForegroundColor Green
+    }
+}
+
+function Release-IP-ByVmName {
+    param([string]$VmName, [hashtable]$Config, [string]$ConfigPath)
+
+    if ($Config.Network.VmIpMapping.ContainsKey($VmName)) {
+        $ipOctet = $Config.Network.VmIpMapping[$VmName]
+
+        # Libérer l'IP et supprimer l'association
+        $Config.Network.UsedIPs = $Config.Network.UsedIPs | Where-Object { $_ -ne $ipOctet }
+        $Config.Network.VmIpMapping.Remove($VmName)
+
+        # Sauvegarder
+        Update-ConfigNetworkData -ConfigPath $ConfigPath -NewUsedIPs $Config.Network.UsedIPs -NewVmIpMapping $Config.Network.VmIpMapping
+
+        Write-Host "[INFO] IP .$ipOctet libérée pour $VmName" -ForegroundColor Green
+    } else {
+        Write-Host "[WARNING] Aucune association IP trouvée pour $VmName" -ForegroundColor Yellow
+    }
+}
+
 
 function Show-Menu {
     Clear-Host
@@ -195,19 +281,31 @@ function Create-VMs {
     $VMName = "TST_$prefix-$id"
 
     if ($NetMode -eq 'STATIC') {
-    Write-Host ("DEBUG Net: Mode={0} IpTemplate='{1}' PoolStart={2}" -f `
-        $NetMode, $script:cfg.Network.IpTemplate, $script:cfg.Network.PoolStart) -ForegroundColor Yellow
+        Write-Host ("DEBUG Net: Mode={0} IpTemplate='{1}' PoolStart={2}" -f `
+            $NetMode, $script:cfg.Network.IpTemplate, $script:cfg.Network.PoolStart) -ForegroundColor Yellow
 
-    if ([string]::IsNullOrWhiteSpace($script:cfg.Network.IpTemplate)) {
-        throw "cfg.Network.IpTemplate manquant (ex: '192.168.10.{0}/24')."
+        if ([string]::IsNullOrWhiteSpace($script:cfg.Network.IpTemplate)) {
+            throw "cfg.Network.IpTemplate manquant (ex: '192.168.10.{0}/24')."
+        }
+        if (-not $script:cfg.Network.PoolStart) { $script:cfg.Network.PoolStart = 200 }
+
+        try {
+            # Recharger la config pour avoir les dernières IPs réservées
+            $script:cfg = Import-PowerShellDataFile $cfgPath
+
+            $lastOctet = Get-NextAvailableIP -Config $script:cfg
+            $IpCidr = ($script:cfg.Network.IpTemplate -f $lastOctet)  # ex: 192.168.10.200/24
+
+            # Réserver l'IP immédiatement avec l'association VM
+            Reserve-IP -LastOctet $lastOctet -VmName $VMName -Config $script:cfg -ConfigPath $cfgPath
+        }
+        catch {
+            Write-Error "Erreur lors de l'attribution d'IP pour $VMName : $_"
+            continue
+        }
+    } else {
+        $IpCidr = $null
     }
-    if (-not $script:cfg.Network.PoolStart) { $script:cfg.Network.PoolStart = 200 }
-
-    $lastOctet = [int]$script:cfg.Network.PoolStart + $i - 1
-    $IpCidr    = ($script:cfg.Network.IpTemplate -f $lastOctet)  # ex: 192.168.10.200/24
-} else {
-    $IpCidr = $null
-}
 Write-Host "[INFO] Création de $VMName (Net=$NetMode IpCidr=$IpCidr)"
 
     & $PS_CREATE `
@@ -453,6 +551,15 @@ function Remove-VMs {
 			}
 		}
 	}
+
+	# Libération des IPs pour les VMs supprimées
+	if ($NetMode -eq 'STATIC') {
+		foreach ($vmName in $VMNames) {
+			# Libérer l'IP en utilisant l'association VM → IP
+			Release-IP-ByVmName -VmName $vmName -Config $script:cfg -ConfigPath $cfgPath
+		}
+	}
+
 	Write-Host "`nSuppression terminée." -ForegroundColor Green
 }
 

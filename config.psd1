@@ -14,8 +14,11 @@
     DnsServers  = @('192.168.10.10','1.1.1.1')
     TimeZone    = 'UTC'
 	PoolStart  = 200                       # 1ère IP: .200
+	PoolEnd    = 250                       # Dernière IP: .250
 	IpCidr		= '192.168.10.{0}/24'
 	IpTemplate = '192.168.10.{0}/24'
+	UsedIPs    = @()                       # Liste des derniers octets utilisés
+	VmIpMapping = @{}                      # Association VM → IP
   }
 
   Defaults = @{
