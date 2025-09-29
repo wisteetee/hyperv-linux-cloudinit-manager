@@ -1,4 +1,4 @@
-<#
+﻿<#
 ========================================================================
  Script  : CreateVmRemote.ps1
  Auteur  : Rémy LEPAPE
@@ -151,7 +151,13 @@ $createVmSb = {
     $DiffDiskPath = Join-Path $VMPath "$VMName-diff.vhdx"
     $IsoFull      = Join-Path $IsoPath "$VMName.iso"
 
-    Write-Host "DEBUG(remote) VMName=$VMName VHDPath=$VHDPath VMPath=$VMPath ISO=$IsoFull"
+    Write-Host "`n[CRÉATION] VM : $VMName" -ForegroundColor Cyan
+    if ($Packages -and $Packages.Count -gt 0) {
+        $packagesList = ($Packages | ForEach-Object { "• $_" }) -join "`n  "
+        Write-Host "  Packages : `n  $packagesList" -ForegroundColor Yellow
+    }
+    Write-Host "  Disque   : $VHDPath" -ForegroundColor White
+    Write-Host "  Config   : $IsoFull" -ForegroundColor White
 
     if (Get-VM -Name $VMName -ErrorAction SilentlyContinue) {
         throw "La VM '$VMName' existe déjà sur l'hôte distant."
@@ -173,7 +179,7 @@ $createVmSb = {
     Add-VMDvdDrive -VMName $VMName -Path $IsoFull
 
     Start-VM -Name $VMName
-    Write-Host "VM '$VMName' créée et démarrée (distant)."
+    Write-Host "[SUCCÈS] VM '$VMName' créée et démarrée" -ForegroundColor Green
 }
 
 # Remarque historique :

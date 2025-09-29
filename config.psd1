@@ -1,4 +1,4 @@
-@{
+﻿@{
   RemoteHost = '192.168.10.201'
 
   Paths = @{
@@ -13,18 +13,22 @@
     Gateway     = '192.168.10.254'
     DnsServers  = @('192.168.10.10','1.1.1.1')
     TimeZone    = 'UTC'
-	PoolStart  = 200                       # 1ère IP: .200
-	PoolEnd    = 250                       # Dernière IP: .250
+	PoolStart  = 200                       # 1Ã¨re IP: .200
+	PoolEnd    = 250                       # DerniÃ¨re IP: .250
 	IpCidr		= '192.168.10.{0}/24'
 	IpTemplate = '192.168.10.{0}/24'
-	UsedIPs    = @()                       # Liste des derniers octets utilisés
-	VmIpMapping = @{}                      # Association VM → IP
+	UsedIPs    = @(200)                       # Liste des derniers octets utilisés
+	VmIpMapping = @{}                                        # Association VM → IP
   }
 
   Defaults = @{
     MemoryGB = 2
     VmSwitch = 'vSwitch-EXT1'
     VmPrefix = 'TST_'
+  }
+
+  Options = @{
+    VerboseMode = $False                    # Affichage détaillé des logs (true: verbose, false: résultats finaux uniquement)
   }
 
   Scripts = @{

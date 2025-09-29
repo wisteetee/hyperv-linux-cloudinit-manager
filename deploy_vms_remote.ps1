@@ -1,4 +1,4 @@
-<#
+﻿<#
 ========================================================================
  Script  : deploy_vms_remote.ps1
  Auteur  : Rémy LEPAPE
@@ -178,7 +178,7 @@ function Reserve-IP {
         # Sauvegarder les deux dans le fichier
         Update-ConfigNetworkData -ConfigPath $ConfigPath -NewUsedIPs $Config.Network.UsedIPs -NewVmIpMapping $Config.Network.VmIpMapping
 
-        Write-Host "[INFO] IP .$LastOctet réservée pour $VmName" -ForegroundColor Green
+        Write-VerboseLog "[INFO] IP .$LastOctet réservée pour $VmName" "Green"
     }
 }
 
@@ -195,30 +195,119 @@ function Release-IP-ByVmName {
         # Sauvegarder
         Update-ConfigNetworkData -ConfigPath $ConfigPath -NewUsedIPs $Config.Network.UsedIPs -NewVmIpMapping $Config.Network.VmIpMapping
 
-        Write-Host "[INFO] IP .$ipOctet libérée pour $VmName" -ForegroundColor Green
+        Write-VerboseLog "[INFO] IP .$ipOctet libérée pour $VmName" "Green"
     } else {
-        Write-Host "[WARNING] Aucune association IP trouvée pour $VmName" -ForegroundColor Yellow
+        Write-VerboseLog "[WARNING] Aucune association IP trouvée pour $VmName" "Yellow"
     }
+}
+
+function Write-VerboseLog {
+    param(
+        [string]$Message,
+        [string]$Color = "White"
+    )
+
+    if ($script:cfg.Options.VerboseMode) {
+        Write-Host $Message -ForegroundColor $Color
+    }
+}
+
+function Write-ResultLog {
+    param(
+        [string]$Message,
+        [string]$Color = "White"
+    )
+
+    # Les messages de résultat s'affichent toujours, peu importe le mode
+    Write-Host $Message -ForegroundColor $Color
+}
+
+function Update-ConfigVerboseMode {
+    param([string]$ConfigPath, [bool]$NewVerboseMode)
+
+    # Charger le contenu ligne par ligne
+    $lines = Get-Content -Path $ConfigPath
+
+    # Traiter chaque ligne
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^\s*VerboseMode\s*=') {
+            # Remplacer la ligne VerboseMode
+            $lines[$i] = "    VerboseMode = `$$NewVerboseMode                    # Affichage détaillé des logs (true: verbose, false: résultats finaux uniquement)"
+            break
+        }
+    }
+
+    # Sauvegarder le fichier avec UTF-8 BOM
+    $lines | Set-Content -Path $ConfigPath -Encoding UTF8
+}
+
+function Show-OptionsMenu {
+    do {
+        Clear-Host
+        $currentVerbose = $script:cfg.Options.VerboseMode
+        $verboseStatus = if ($currentVerbose) { "ACTIVÉ" } else { "DÉSACTIVÉ" }
+
+        Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+        Write-Host "║                         OPTIONS                          ║" -ForegroundColor Cyan
+        Write-Host "╠══════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+        Write-Host "║                                                          ║"
+        Write-Host ("║ Mode Verbose : {0,-36}      ║" -f $verboseStatus)
+        Write-Host "║                                                          ║"
+        Write-Host "║  1. Activer le mode Verbose                              ║"
+        Write-Host "║  2. Désactiver le mode Verbose                           ║"
+        Write-Host "║  3. Retour au menu principal                             ║"
+        Write-Host "║                                                          ║"
+        Write-Host "╠══════════════════════════════════════════════════════════╣"
+        Write-Host "║ Mode Verbose ACTIVÉ  : Affiche tous les logs détaillés   ║" -ForegroundColor Green
+        Write-Host "║ Mode Verbose DÉSACTIVÉ : Affiche seulement les résultats ║" -ForegroundColor Yellow
+        Write-Host "╚══════════════════════════════════════════════════════════╝"
+
+        $optionChoice = Read-Host "Choisissez une option (1-3)"
+
+        switch ($optionChoice) {
+            "1" {
+                $script:cfg.Options.VerboseMode = $true
+                Update-ConfigVerboseMode -ConfigPath $cfgPath -NewVerboseMode $true
+                Write-Host "`n[INFO] Mode Verbose ACTIVÉ" -ForegroundColor Green
+                Start-Sleep -Seconds 1
+            }
+            "2" {
+                $script:cfg.Options.VerboseMode = $false
+                Update-ConfigVerboseMode -ConfigPath $cfgPath -NewVerboseMode $false
+                Write-Host "`n[INFO] Mode Verbose DÉSACTIVÉ" -ForegroundColor Yellow
+                Start-Sleep -Seconds 1
+            }
+            "3" {
+                return
+            }
+            default {
+                Write-Host "`n[ERREUR] Option invalide." -ForegroundColor Red
+                Start-Sleep -Seconds 1
+            }
+        }
+    } while ($true)
 }
 
 
 function Show-Menu {
     Clear-Host
+    Write-VerboseLog "[DEBUG] Test de connexion vers $RemoteHost..." "Yellow"
     $serverReachable = Test-Connection -ComputerName $RemoteHost -Count 1 -Quiet
     $status = if ($serverReachable) { "Connecte" } else { "Non disponible" }
-    Write-Host "╔═══════════════════════════════════════════════════════╗"
-    Write-Host "║               Hyper-V Ubuntu VM Manager               ║"
-    Write-Host "╠═══════════════════════════════════════════════════════╣"
-    Write-Host ("║ Date : {0,-20} Heure : {1,-15}   ║" -f (Get-Date -Format 'dd/MM/yyyy'), (Get-Date -Format 'HH:mm:ss'))
-    Write-Host ("║ Serveur Distant : {0,-36}║" -f "$status ($RemoteHost)")
-    Write-Host "║                                                       ║"
-    Write-Host "║  1. Creer des VM(s)                                   ║"
-    Write-Host "║  2. Demarrer des VM(s)                                ║"
-    Write-Host "║  3. Arreter des VM(s)                                 ║"
-    Write-Host "║  4. Supprimer des VM(s)                               ║"
-    Write-Host "║  5. Lister toutes les VM(s)                           ║"
-    Write-Host "║  6. Quitter                                           ║"
-    Write-Host "╚═══════════════════════════════════════════════════════╝"
+    Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+    Write-Host "║               Hyper-V Ubuntu VM Manager                  ║" -ForegroundColor Cyan
+    Write-Host "╠══════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+    Write-Host ("║ Date : {0,-20} Heure : {1,-15}      ║" -f (Get-Date -Format 'dd/MM/yyyy'), (Get-Date -Format 'HH:mm:ss'))
+    Write-Host ("║ Serveur Distant : {0,-36}   ║" -f "$status ($RemoteHost)")
+    Write-Host "║                                                          ║"
+    Write-Host "║  1. Creer des VM(s)                                      ║"
+    Write-Host "║  2. Demarrer des VM(s)                                   ║"
+    Write-Host "║  3. Arreter des VM(s)                                    ║"
+    Write-Host "║  4. Supprimer des VM(s)                                  ║"
+    Write-Host "║  5. Lister toutes les VM(s)                              ║"
+    Write-Host "║  6. Options                                              ║"
+    Write-Host "║  7. Quitter                                              ║"
+    Write-Host "╚══════════════════════════════════════════════════════════╝"
 }
 
 
@@ -275,14 +364,65 @@ function Create-VMs {
     Where-Object { $_ -and $_.ToString().Trim() } |
     ForEach-Object { $_.ToString().Trim() } |
     Select-Object -Unique
-	
+
+    # Vérification préalable des noms de VM et fichiers existants
+    Write-VerboseLog "[INFO] Vérification des conflits existants..." "Yellow"
+    $conflicts = @()
+
+    for ($i = 1; $i -le $count; $i++) {
+        $id = "{0:D2}" -f $i
+        $VMName = "TST_$prefix-$id"
+
+        # Vérifier VM et fichiers existants sur l'hôte distant
+        $conflictInfo = Invoke-Command -ComputerName $RemoteHost -Credential $cred -ArgumentList $VMName, $IsoPath, $VmRoot -ScriptBlock {
+            param($Name, $IsoPath, $VmRoot)
+            $issues = @()
+
+            # Vérifier VM existante
+            if (Get-VM -Name $Name -ErrorAction SilentlyContinue) {
+                $issues += "VM '$Name' existe déjà"
+            }
+
+            # Vérifier ISO existant
+            $isoFile = Join-Path $IsoPath "$Name.iso"
+            if (Test-Path $isoFile) {
+                $issues += "ISO '$Name.iso' existe déjà"
+            }
+
+            # Vérifier dossier VM existant
+            $vmFolder = Join-Path $VmRoot $Name
+            if (Test-Path $vmFolder) {
+                $issues += "Dossier '$Name' existe déjà"
+            }
+
+            return $issues
+        }
+
+        if ($conflictInfo -and $conflictInfo.Count -gt 0) {
+            $conflicts += @{VMName = $VMName; Issues = $conflictInfo}
+        }
+    }
+
+    if ($conflicts.Count -gt 0) {
+        Write-Host "`n[ERREUR] Conflits détectés :" -ForegroundColor Red
+        foreach ($conflict in $conflicts) {
+            Write-Host "`n  VM: $($conflict.VMName)" -ForegroundColor Yellow
+            foreach ($issue in $conflict.Issues) {
+                Write-Host "    • $issue" -ForegroundColor Red
+            }
+        }
+        Write-Host "`nVeuillez choisir un autre nom ou nettoyer les éléments existants d'abord." -ForegroundColor Yellow
+        Pause
+        return
+    }
+
     for ($i = 1; $i -le $count; $i++) {
     $id     = "{0:D2}" -f $i
     $VMName = "TST_$prefix-$id"
 
     if ($NetMode -eq 'STATIC') {
-        Write-Host ("DEBUG Net: Mode={0} IpTemplate='{1}' PoolStart={2}" -f `
-            $NetMode, $script:cfg.Network.IpTemplate, $script:cfg.Network.PoolStart) -ForegroundColor Yellow
+        Write-VerboseLog ("DEBUG Net: Mode={0} IpTemplate='{1}' PoolStart={2}" -f `
+            $NetMode, $script:cfg.Network.IpTemplate, $script:cfg.Network.PoolStart) "Yellow"
 
         if ([string]::IsNullOrWhiteSpace($script:cfg.Network.IpTemplate)) {
             throw "cfg.Network.IpTemplate manquant (ex: '192.168.10.{0}/24')."
@@ -306,7 +446,7 @@ function Create-VMs {
     } else {
         $IpCidr = $null
     }
-Write-Host "[INFO] Création de $VMName (Net=$NetMode IpCidr=$IpCidr)"
+    Write-VerboseLog "[INFO] Création de $VMName (Net=$NetMode IpCidr=$IpCidr)" "Cyan"
 
     & $PS_CREATE `
         -VMName $VMName `
@@ -325,6 +465,8 @@ Write-Host "[INFO] Création de $VMName (Net=$NetMode IpCidr=$IpCidr)"
 		-Packages $AllPackages       
 }
 
+    # Message de résultat final (toujours affiché)
+    Write-ResultLog "`n[SUCCÈS] $count VM(s) créée(s) avec succès !" "Green"
 
     Invoke-Command -ComputerName $RemoteHost -Credential $cred -ScriptBlock {
         Get-VM | Where-Object { $_.Name -like '*TST*' } | Select-Object Name, State, MemoryAssigned, Uptime, Status
@@ -350,10 +492,10 @@ function Start-AllVMs {
 
     # Sélection via Out-GridView local
     if (Get-Command Out-GridView -ErrorAction SilentlyContinue) {
-        Write-Host "`nSélectionnez les VMs à démarrer (CTRL+clic pour sélection multiple), puis cliquez sur OK." -ForegroundColor Yellow
+        Write-VerboseLog "`nSélectionnez les VMs à démarrer (CTRL+clic pour sélection multiple), puis cliquez sur OK." "Yellow"
         $selectedNames = $stoppedVMs | Out-GridView -Title "Sélection des VMs à démarrer" -PassThru
     } else {
-        Write-Host "`nEntrez les noms EXACTS des VM(s) à démarrer, séparés par des virgules ou espaces :" -ForegroundColor Yellow
+        Write-VerboseLog "`nEntrez les noms EXACTS des VM(s) à démarrer, séparés par des virgules ou espaces :" "Yellow"
         $userInput = Read-Host "Exemple : TST_VM-01,TST_VM-02"
         $selectedNames = $userInput -split '[,\s]+' | Where-Object { $_ -ne '' }
     }
@@ -408,10 +550,10 @@ function Stop-AllVMs {
 
     # Étape 2 : Sélection via Out-GridView local
     if (Get-Command Out-GridView -ErrorAction SilentlyContinue) {
-        Write-Host "`nSélectionnez les VMs à arrêter (CTRL+clic pour sélection multiple), puis cliquez sur OK." -ForegroundColor Yellow
+        Write-VerboseLog "`nSélectionnez les VMs à arrêter (CTRL+clic pour sélection multiple), puis cliquez sur OK." "Yellow"
         $selectedNames = $targetVMs | Out-GridView -Title "Sélection des VMs à arrêter" -PassThru
     } else {
-        Write-Host "`nEntrez les noms EXACTS des VM(s) à arrêter, séparés par des virgules ou espaces :" -ForegroundColor Yellow
+        Write-VerboseLog "`nEntrez les noms EXACTS des VM(s) à arrêter, séparés par des virgules ou espaces :" "Yellow"
         $userInput = Read-Host "Exemple : TST_VM-01,TST_VM-02"
         $selectedNames = $userInput -split '[,\s]+' | Where-Object { $_ -ne '' }
     }
@@ -469,7 +611,7 @@ function Remove-VMs {
 
 	# Tentative d'utilisation d'Out-GridView
 	if (Get-Command Out-GridView -ErrorAction SilentlyContinue) {
-		Write-Host "`nSélectionnez les VMs à supprimer (CTRL+clic pour sélection multiple), puis cliquez sur OK." -ForegroundColor Yellow
+		Write-VerboseLog "`nSélectionnez les VMs à supprimer (CTRL+clic pour sélection multiple), puis cliquez sur OK." "Yellow"
 		$selectedVMs = $vmList | Out-GridView -Title "Sélection des VMs à supprimer" -PassThru
 	} 
 
@@ -560,7 +702,7 @@ function Remove-VMs {
 		}
 	}
 
-	Write-Host "`nSuppression terminée." -ForegroundColor Green
+	Write-ResultLog "`n[SUCCÈS] $($VMNames.Count) VM(s) supprimée(s) avec succès !" "Green"
 }
 
 
@@ -569,9 +711,9 @@ function Remove-VMs {
 function List-VMs {
     
 	$cred = Get-Credentials
-    Write-Host "`n=== Lister les VM(s) ===" -ForegroundColor Cyan
-    Write-Host "1. Lister toutes les VM(s)"
-    Write-Host "2. Lister uniquement les VM(s) TST_ (créées par ce script)"
+    Write-VerboseLog "`n=== Lister les VM(s) ===" "Cyan"
+    Write-VerboseLog "1. Lister toutes les VM(s)" "White"
+    Write-VerboseLog "2. Lister uniquement les VM(s) TST_ (créées par ce script)" "White"
     $listChoice = Read-Host "Choisissez une option (1 ou 2)"
 
     $filterScriptBlock = {
@@ -601,7 +743,7 @@ function List-VMs {
 # === MAIN LOOP ===
 do {
     Show-Menu
-    $choice = Read-Host "Choisissez une option (1-6)"
+    $choice = Read-Host "Choisissez une option (1-7)"
 
 	switch ($choice) {
 		"1" { Create-VMs }
@@ -609,7 +751,8 @@ do {
 		"3" { Stop-AllVMs }
 		"4" { Remove-VMs; pause }
 		"5" { List-VMs }
-		"6" { Write-Host "Au revoir !" ; exit }
+		"6" { Show-OptionsMenu }
+		"7" { Write-Host "Au revoir !" ; exit }
 		default { Write-Host "Option invalide." -ForegroundColor Red ; Start-Sleep -Seconds 1 }
 	}
 } while ($true)

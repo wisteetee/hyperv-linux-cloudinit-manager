@@ -1,0 +1,4 @@
+#ignore les images de plusieurs Gb
+*.vhdx
+#ignore creds.xml
+*.xml

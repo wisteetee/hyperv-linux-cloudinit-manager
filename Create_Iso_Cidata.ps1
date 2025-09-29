@@ -31,7 +31,6 @@ $HostnameVM = $Hostname -replace '[^a-z0-9-]', '-' `   # remplace tout ce qui n�
 if ($HostnameVM.Length -gt 63) {
     $HostnameVM = $HostnameVM.Substring(0,63) -replace '-+$',''
 }
-write-host "Hostname: $Hostname et HostnameVM: $Hostname"
 
 $AllPackages = @($Packages) | Where-Object { $_ -and $_.Trim() } | ForEach-Object { $_.Trim() } | Select-Object -Unique
 
@@ -42,7 +41,6 @@ $(( $AllPackages | ForEach-Object { "  - $_" } ) -join "`n")
 "@.Trim()
 }
 
-write-host "Packages choisis:`n $PackagesYaml"
 
 # ---- Contenus UserData/MetaData/NetworkConfig ----
 $UserData = @"
@@ -216,4 +214,3 @@ New-Item -ItemType Directory -Path $IsoPath -Force | Out-Null
 $IsoOut = Join-Path $IsoPath "$Hostname.iso"
 $null = & $OscdimgPath -d -n -lCIDATA $TmpDir $IsoOut 2>&1
 if ($LASTEXITCODE -ne 0) { throw "Échec oscdimg (code $LASTEXITCODE)" }
-Write-Host "ISO générée: $IsoOut"
