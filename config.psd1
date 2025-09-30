@@ -1,5 +1,5 @@
 ﻿@{
-  RemoteHost = '192.168.10.201'
+  # RemoteHost = '192.168.10.201'  # OBSOLÈTE : Désormais géré par Windows Credential Manager
 
   Paths = @{
     ParentVhdx   = 'E:\BACKUP\VAULTWARDEN_BACKUP\VM TST_\VHDX PARENT\CloudVMUbuntu.vhdx'
@@ -13,12 +13,12 @@
     Gateway     = '192.168.10.254'
     DnsServers  = @('192.168.10.10','1.1.1.1')
     TimeZone    = 'UTC'
-	PoolStart  = 200                       # 1Ã¨re IP: .200
-	PoolEnd    = 250                       # DerniÃ¨re IP: .250
+	PoolStart  = 200                       # 1ere IP: .200
+	PoolEnd    = 250                       # Derniere IP: .250
 	IpCidr		= '192.168.10.{0}/24'
 	IpTemplate = '192.168.10.{0}/24'
-	UsedIPs    = @(200)                       # Liste des derniers octets utilisés
-	VmIpMapping = @{}                                        # Association VM → IP
+	UsedIPs    = @(200)                    # Liste des derniers octets utilisés
+	VmIpMapping = @{}                      # Association VM → IP
   }
 
   Defaults = @{
@@ -28,14 +28,14 @@
   }
 
   Options = @{
-    VerboseMode = $False                    # Affichage détaillé des logs (true: verbose, false: résultats finaux uniquement)
+    VerboseMode = $True                    # Affichage détaillé des logs (true: verbose, false: résultats finaux uniquement)
   }
 
   Scripts = @{
     Create   = 'CreateVmRemote.ps1'
     Remove   = 'RemoveVmRemote.ps1'
     Iso      = 'Create_Iso_Cidata.ps1'
-    CredFile = 'creds.xml'
+    # CredFile = 'creds.xml'  # OBSOLÈTE : Remplacé par Windows Credential Manager
     # BaseDir = 'D:\MesScripts\UbuntuDeploy\ServeurDistantPowershell' # optionnel
   }
 }
