@@ -106,10 +106,10 @@ function New-CloudInitIsoRemote {
         [string]$IpCidr,
         [string]$Gateway,
         [string[]]$DnsServers,
-		[string[]]$Packages
+		    [string[]]$Packages
     )
 
-    # Dossier temporaire par-VM côté distant (cloud-init seed)
+    # Dossier temporaire par VM côté distant (cloud-init seed)
     $TmpDir = Join-Path $IsoPath "tmp\cidata\$Hostname"
 
     # On évite tout ScriptBlock ici -> on pousse directement le fichier Create_Iso_Cidata.ps1
@@ -128,7 +128,7 @@ function New-CloudInitIsoRemote {
         $IpCidr,           # 12
         $Gateway,          # 13
         [object]$DnsServers,  # 14
-		[object]$Packages
+		    [object]$Packages
     )
 }
 

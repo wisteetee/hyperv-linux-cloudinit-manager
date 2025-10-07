@@ -106,14 +106,13 @@ $BaseDir   = if ($cfg.Scripts.ContainsKey('BaseDir') -and $cfg.Scripts.BaseDir)
 $PS_CREATE = Join-Path $BaseDir $cfg.Scripts.Create
 $PS_ISO    = Join-Path $BaseDir $cfg.Scripts.Iso
 $CredFile  = Join-Path $BaseDir $cfg.Scripts.CredFile
+$targetCred = "$RemoteHost"+"HyperV"
 
 # fonction de récupération du fichier contenant les identifiants de connection ou création/complétion si n'existe pas déjà
-function Get-Credentials {
-    if (-not (Test-Path $CredFile)) {
-        Get-Credential | Export-Clixml -Path $CredFile
-    }
-    Import-Clixml -Path $CredFile
-}
+	function Get-Credentials {
+      $script:cred = Get-StoredCredential -Target $targetCred
+      return $script:cred  # Retourner la valeur
+	}
 
 function Get-NextAvailableIP {
     param([hashtable]$Config)
@@ -255,14 +254,16 @@ function Show-OptionsMenu {
         Write-Host "║                                                          ║"
         Write-Host "║  1. Activer le mode Verbose                              ║"
         Write-Host "║  2. Désactiver le mode Verbose                           ║"
-        Write-Host "║  3. Retour au menu principal                             ║"
+		Write-Host "║  3. Sélectionner les informations de connexion par défaut║"
+		Write-Host "║  4. Définir de nouvelles informations de connexion       ║"
+        Write-Host "║  5. Retour au menu principal                             ║"
         Write-Host "║                                                          ║"
         Write-Host "╠══════════════════════════════════════════════════════════╣"
         Write-Host "║ Mode Verbose ACTIVÉ  : Affiche tous les logs détaillés   ║" -ForegroundColor Green
         Write-Host "║ Mode Verbose DÉSACTIVÉ : Affiche seulement les résultats ║" -ForegroundColor Yellow
         Write-Host "╚══════════════════════════════════════════════════════════╝"
 
-        $optionChoice = Read-Host "Choisissez une option (1-3)"
+        $optionChoice = Read-Host "Choisissez une option (1-4)"
 
         switch ($optionChoice) {
             "1" {
@@ -277,7 +278,34 @@ function Show-OptionsMenu {
                 Write-Host "`n[INFO] Mode Verbose DÉSACTIVÉ" -ForegroundColor Yellow
                 Start-Sleep -Seconds 1
             }
-            "3" {
+			"3" {
+                #ajouter la selection des creds souhaités
+				Write-Host "Voilà les credentials existants:" -ForegroundColor Blue
+				$hyperVCreds = cmdkey /list | Select-String "Cible :" | ForEach-Object {
+					if ($_.Line -match "target=(.+)") {
+						$matches[1]
+					}
+				} | Where-Object { $_ -like "*HyperV" }
+				if ($hyperVCreds) {
+					$hyperVCreds | ForEach-Object {
+						Write-Host "  - $_" -ForegroundColor Gray
+					}
+				} else {
+					Write-Host "  Aucun credential se terminant par 'HyperV' trouvé" -ForegroundColor Red
+				}
+				pause
+            }
+			"4" {
+				Write-Host "Entrez vos identifiants de connexion au serveur distant $RemoteHost" 
+                $choice = Get-Credential
+				New-StoredCredential -Target $targetCred -UserName $choice.UserName -SecurePassword $choice.Password -Type Generic -Persist LocalMachine | Out-Null
+				
+				$script:cred = Get-StoredCredential -Target $targetCred
+				Write-Host "✓ Username récupéré: $($cred.UserName) et mdp: $($cred.GetNetworkCredential().Password)" -ForegroundColor Green
+				#$choice = Read-Host "Entrez vos identifiants de connexion au serveur distant $RemoteHost"
+				pause
+            }
+            "5" {
                 return
             }
             default {
@@ -291,6 +319,7 @@ function Show-OptionsMenu {
 
 function Show-Menu {
     Clear-Host
+	
     Write-VerboseLog "[DEBUG] Test de connexion vers $RemoteHost..." "Yellow"
     $serverReachable = Test-Connection -ComputerName $RemoteHost -Count 1 -Quiet
     $status = if ($serverReachable) { "Connecte" } else { "Non disponible" }
@@ -712,22 +741,23 @@ function List-VMs {
     
 	$cred = Get-Credentials
     Write-VerboseLog "`n=== Lister les VM(s) ===" "Cyan"
-    Write-VerboseLog "1. Lister toutes les VM(s)" "White"
-    Write-VerboseLog "2. Lister uniquement les VM(s) TST_ (créées par ce script)" "White"
+    Write-Host "1. Lister toutes les VM(s)"
+    Write-Host "2. Lister uniquement les VM(s) TST_ (créées par ce script)"
     $listChoice = Read-Host "Choisissez une option (1 ou 2)"
 
     $filterScriptBlock = {
-    param($mode)
-    $vms = Get-VM
-    if ($mode -eq 2) {
-        $vms = $vms | Where-Object { $_.Name -like 'TST_*' }
+		param($mode)
+		$vms = Get-VM
+		if ($mode -eq 2) 
+		{
+			$vms = $vms | Where-Object { $_.Name -like 'TST_*' }
 
-        if (-not $vms) {
-            Write-Host "Aucune VM correspondant au filtre 'TST_*'." -ForegroundColor Red
-        }
-    }
-    return $vms | Select-Object Name, State, MemoryAssigned, Uptime, Status
-}
+			if (-not $vms) {
+				Write-Host "Aucune VM correspondant au filtre 'TST_*'." -ForegroundColor Red
+			}
+		}
+		return $vms | Select-Object Name, State, MemoryAssigned, Uptime, Status
+	}
 
 
     if ($listChoice -eq '1' -or $listChoice -eq '2') {

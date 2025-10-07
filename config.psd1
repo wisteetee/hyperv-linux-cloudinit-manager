@@ -9,16 +9,16 @@
   }
 
   Network = @{
-    Mode        = 'STATIC'  # ou 'DHCP' STATIC
+    Mode        = 'STATIC'  # 'DHCP' ou 'STATIC'
     Gateway     = '192.168.10.254'
     DnsServers  = @('192.168.10.10','1.1.1.1')
     TimeZone    = 'UTC'
-	PoolStart  = 200                       # 1Ã¨re IP: .200
-	PoolEnd    = 250                       # DerniÃ¨re IP: .250
+	PoolStart  = 200                       # 1ere IP: .200
+	PoolEnd    = 250                       # Derniere IP: .250
 	IpCidr		= '192.168.10.{0}/24'
 	IpTemplate = '192.168.10.{0}/24'
-	UsedIPs    = @(200)                       # Liste des derniers octets utilisés
-	VmIpMapping = @{}                                        # Association VM → IP
+	UsedIPs    = @(200, 201, 202)                       # Liste des derniers octets utilisés
+	VmIpMapping = @{ 'TST_test-01' = 201; 'TST_test-02' = 202 }  # Association VM → IP
   }
 
   Defaults = @{
