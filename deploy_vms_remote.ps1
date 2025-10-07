@@ -108,11 +108,25 @@ $PS_ISO    = Join-Path $BaseDir $cfg.Scripts.Iso
 $CredFile  = Join-Path $BaseDir $cfg.Scripts.CredFile
 $targetCred = "$RemoteHost"+"HyperV"
 
-# fonction de récupération du fichier contenant les identifiants de connection ou création/complétion si n'existe pas déjà
-	function Get-Credentials {
-      $script:cred = Get-StoredCredential -Target $targetCred
-      return $script:cred  # Retourner la valeur
+# Fonction de récupération du fichier contenant les identifiants de connection ou création/complétion si n'existe pas déjà
+function Get-Credentials {
+  $script:cred = Get-StoredCredential -Target $targetCred
+  return $script:cred  # Retourner la valeur
+}
+
+# Installation module TUN.CredentialManager pour gestion informations de connexion serveur distant.
+function Ensure-CredentialModule {
+	# Supprimer les autres modules potentiellement conflictuels
+	Get-Module PSCredentialManager, CredentialManager -ErrorAction SilentlyContinue | Remove-Module -Force
+
+	# Importer explicitement TUN.CredentialManager
+	if (-not (Get-Module -Name TUN.CredentialManager -ListAvailable)) {
+		Write-Host "Installation de TUN.CredentialManager..." -ForegroundColor Yellow
+		Install-Module TUN.CredentialManager -Force -AllowClobber -Scope CurrentUser
 	}
+	Import-Module TUN.CredentialManager -Force
+	Write-Host "✓ Module TUN.CredentialManager chargé" -ForegroundColor Green
+}
 
 function Get-NextAvailableIP {
     param([hashtable]$Config)
@@ -281,6 +295,7 @@ function Show-OptionsMenu {
 			"3" {
                 #ajouter la selection des creds souhaités
 				Write-Host "Voilà les credentials existants:" -ForegroundColor Blue
+				#utiisation de cmdkey car 
 				$hyperVCreds = cmdkey /list | Select-String "Cible :" | ForEach-Object {
 					if ($_.Line -match "target=(.+)") {
 						$matches[1]

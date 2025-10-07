@@ -143,7 +143,21 @@ try {
   Write-Host "WinRM répond correctement sur localhost." -ForegroundColor Green
 } catch {
   Write-Host "Test échoué : WinRM ne répond pas." -ForegroundColor Red
+
+# Ajout préconfiguration nécessaire
+# Installation module TUN.CredentialManager pour gestion informations de connexion serveur distant.
+
+# Supprimer les autres modules potentiellement conflictuels
+Get-Module PSCredentialManager, CredentialManager -ErrorAction SilentlyContinue | Remove-Module -Force
+
+# Importer explicitement TUN.CredentialManager
+if (-not (Get-Module -Name TUN.CredentialManager -ListAvailable)) {
+	Write-Host "Installation de TUN.CredentialManager..." -ForegroundColor Yellow
+	Install-Module TUN.CredentialManager -Force -AllowClobber -Scope CurrentUser
 }
+Import-Module TUN.CredentialManager -Force
+Write-Host "✓ Module TUN.CredentialManager chargé" -ForegroundColor Green
+
 
 Write-Host "`n--- Fin du script ---`n" -ForegroundColor Cyan
 

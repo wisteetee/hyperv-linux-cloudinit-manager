@@ -17,8 +17,8 @@
 	PoolEnd    = 250                       # Derniere IP: .250
 	IpCidr		= '192.168.10.{0}/24'
 	IpTemplate = '192.168.10.{0}/24'
-	UsedIPs    = @(200, 201, 202)                       # Liste des derniers octets utilisés
-	VmIpMapping = @{ 'TST_test-01' = 201; 'TST_test-02' = 202 }  # Association VM → IP
+	UsedIPs    = @(200)                       # Liste des derniers octets utilisés
+	VmIpMapping = @{}                                        # Association VM → IP
   }
 
   Defaults = @{
